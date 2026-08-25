@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 32 32">
+<style type="text/css">
+	.st0{fill:#131518;}
+	@media (prefers-color-scheme:dark){:root{filter:invert(100%)}}
+</style>
+<path class="st0" d="M2.1,2.1h12v12h-4v-8h-4v8h-4V2.1z M10.1,26h-4v-8h-4v12h12V18h-4V26z M18,14h8v4h-8v4h12V10.1H18V14z M18,2.1
+	v4h12v-4H18z M18,30h12v-4H18V30z"/>
+</svg>
