@@ -2,3 +2,16 @@ body {
     background: #000;
     margin: 0;
 }
+
+.built-with {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    font-family: monospace;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.1);
+}
+
+.built-with a {
+    color: rgba(255, 255, 255, 0.2);
+}

@@ -9,6 +9,6 @@ Ghost is an early-stage 3D physics engine prototype built with Three.js and Rapi
 To have a quick play around with the code (and import your own player model):
 
 1. Open in StackBlitz via the link above
-2. Fork the directory (You will need a CodeSandbox account)
+2. Fork the directory (You will need a StackBlitz account)
 2. Upload your player model to public/models/
 2. Update the path to your model in src/main.js file - config section

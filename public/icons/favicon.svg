@@ -1,8 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 32 32">
-<style type="text/css">
-	.st0{fill:#131518;}
-	@media (prefers-color-scheme:dark){:root{filter:invert(100%)}}
-</style>
-<path class="st0" d="M2.1,2.1h12v12h-4v-8h-4v8h-4V2.1z M10.1,26h-4v-8h-4v12h12V18h-4V26z M18,14h8v4h-8v4h12V10.1H18V14z M18,2.1
-	v4h12v-4H18z M18,30h12v-4H18V30z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="100%" height="100%">
+  <style>
+    .ghost-shape {
+      /* Default to dark mode (white fill) */
+      fill: #ffffff;
+    }
+
+    /* Switch to dark fill for light mode backgrounds */
+    @media (prefers-color-scheme: light) {
+      .ghost-shape {
+        fill: #121212;
+      }
+    }
+  </style>
+  <path class="ghost-shape" d="M130.1,583.9l-14,11.2c-4,3.1-8.9,4.9-13.9,4.9C90,600,80,590,80,577.8V240C80,107.5,187.5,0,320,0s240,107.5,240,240v337.8c0,12.2-10,22.2-22.2,22.2c-5,0-9.9-1.8-13.9-4.9l-14-11.2c-16.8-13.4-41-11.2-55.1,4.9l-38.1,43.8c-4.1,4.8-10.2,7.5-16.6,7.5s-12.4-2.8-16.6-7.5l-33.2-38.1c-15.9-18.2-44.2-18.2-60.2,0l-33.2,38.1c-4.1,4.8-10.2,7.5-16.6,7.5s-12.4-2.8-16.6-7.5l-38.1-43.8C171.1,572.6,146.9,570.5,130.1,583.9z M282,240c0-32.1-25.9-58-58-58c-32.1,0-58,25.9-58,58s25.9,58,58,58C256.1,298,282,272.1,282,240z M416,298c32.1,0,58-25.9,58-58s-25.9-58-58-58s-58,25.9-58,58S383.9,298,416,298z"/>
 </svg>
