@@ -100,5 +100,16 @@ export function createStairs(scene, physicsWorld, options = {}) {
     steps.push(step);
   }
 
-  return { steps };
+  // Aggregate teardown for the whole staircase in one call, mirroring
+  // createPhysicsGLB.js's self-registering modules. Each individual step
+  // already has its own destroy() (via PhysicsObject) -- this just loops
+  // physicsWorld.remove() over all of them, since createStairs.js is the
+  // one self-registering module that only handed back a bare array before.
+  function destroy() {
+    for (const step of steps) {
+      physicsWorld.remove(step);
+    }
+  }
+
+  return { steps, destroy };
 }

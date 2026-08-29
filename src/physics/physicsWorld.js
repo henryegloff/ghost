@@ -26,6 +26,7 @@ export class PhysicsWorld {
   _debugLines = null;
   _debugGeometry = null;
   _initialGravity;
+  _player = null;
 
   constructor(options = {}) {
     const { gravity = { x: 0, y: -9.81, z: 0 }, debug = false } = options;
@@ -162,6 +163,50 @@ export class PhysicsWorld {
     }
   }
 
+  // Tears down every currently managed object (calling each one's
+  // destroy(), if it has one) and empties the managed-object set. The
+  // fixed-timestep accumulator is also reset, since leftover sub-step time
+  // from whatever was just cleared has no meaning once new content is
+  // added. The Rapier World itself, the scene reference, and the debug
+  // wireframe mesh are left untouched -- this only wipes tracked content,
+  // it isn't a full re-init.
+  //
+  // Intended as the "old scene's physics content is gone" half of a scene
+  // switch: pair with setScene() to point at the new THREE.Scene, then
+  // populate it.
+  clear() {
+    for (const obj of this._managedObjects) {
+      obj.destroy?.();
+    }
+    this._managedObjects.clear();
+    this._accumulator = 0;
+    this._alpha = 0;
+  }
+
+  // Removes an object from management WITHOUT destroying it. Use this
+  // (instead of remove()) for an object that needs to survive a clear()
+  // call -- a player being carried across a scene switch, for instance --
+  // then re-add it with add() once the new scene is in place. Calling
+  // clear() while an object is still managed always destroys it, even if
+  // the intent was to keep it around; this is how a caller opts an object
+  // out of that ahead of time.
+  unmanage(physicsObject) {
+    this._managedObjects.delete(physicsObject);
+  }
+
+  // Re-points this world at a different THREE.Scene. The debug wireframe
+  // mesh is moved across so debug rendering keeps working after the swap.
+  // Managed objects and the Rapier World are untouched -- call clear()
+  // first if the previous scene's objects should be removed as part of
+  // the switch.
+  setScene(newScene) {
+    if (this._debugLines) {
+      this._scene?.remove(this._debugLines);
+      newScene.add(this._debugLines);
+    }
+    this._scene = newScene;
+  }
+
   get world() {
     return this._world;
   }
@@ -176,6 +221,22 @@ export class PhysicsWorld {
 
   get debugEnabled() {
     return this._debugEnabled;
+  }
+
+  // The currently active player, if any. Kept as a plain settable
+  // reference (unlike the other read-only getters here) because
+  // SceneManager needs to update it whenever the player is created,
+  // replaced, or carried across a scene switch. Objects that need to
+  // react to the player without being directly wired to it -- a level
+  // switcher's trigger volume, for instance -- read this instead of
+  // requiring every scene builder to thread a player reference through
+  // by hand.
+  get player() {
+    return this._player;
+  }
+
+  set player(playerInstance) {
+    this._player = playerInstance;
   }
 }
 

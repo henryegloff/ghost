@@ -64,6 +64,13 @@
 // promise is exposed if calling code wants to know when that happens
 // (e.g. to hide a loading spinner, or to know loading failed and it fell
 // back to nothing).
+//
+// Exposes destroy() (not dispose()) for its full teardown, matching the
+// convention used by every entity in this codebase -- it does more than
+// three.js's dispose() usually implies (it also removes `root` from the
+// scene graph, not just GPU resources), even though it still calls
+// geometry/material .dispose() internally where that narrower three.js
+// meaning applies.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -219,7 +226,16 @@ export function createPlayerVisual(scene, options = {}) {
     if (mixer) mixer.update(dt);
   }
 
-  function dispose() {
+  // Full entity teardown -- matches the destroy() convention used by every
+  // other module in this codebase (playerController.js, flowController.js,
+  // createMovingPlatform.js, createPhysicsObject.js, ...), which each do a
+  // composite teardown (listeners + scene graph + physics + GPU resources)
+  // rather than the narrower "just free this one GPU resource" scope that
+  // three.js itself gives to dispose() (see BufferGeometry.dispose(),
+  // Material.dispose(), OrbitControls.dispose()). Internally this still
+  // calls geometry/material .dispose() exactly as three.js expects --
+  // that's the correct use of the term at that narrower scope.
+  function destroy() {
     root.traverse((child) => {
       if (child.isMesh) {
         child.geometry?.dispose();
@@ -239,7 +255,7 @@ export function createPlayerVisual(scene, options = {}) {
     ready,
     setMoveDirection,
     update,
-    dispose,
+    destroy,
     facing: meshFacing,
     hover: hoverEffect,
     get mixer() {

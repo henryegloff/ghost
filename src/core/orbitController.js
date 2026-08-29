@@ -53,6 +53,18 @@ export class OrbitCameraController {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
   }
+
+  // Every other camera-owning controller in this codebase
+  // (playerController.js, playerControllerExtended.js, flowController.js)
+  // tears down its OrbitControls instance on destroy() -- OrbitControls
+  // attaches its own pointer/wheel/touch listeners to domElement in its
+  // constructor, and those leak unless something calls controls.dispose().
+  // This mirrors that. (controls.dispose() is the correct three.js-native
+  // name here since it's calling straight through to OrbitControls' own
+  // method, not a composite teardown of our own.)
+  destroy() {
+    this.controls.dispose();
+  }
 }
 
 // Thin factory wrapper for drop-in compatibility with code that still

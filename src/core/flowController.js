@@ -256,7 +256,7 @@ export function createFlowController(scene, physicsWorld, domElement, options = 
   function destroy() {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
-    playerVisual.dispose();
+    playerVisual.destroy();
     world.removeRigidBody(body);
   }
 

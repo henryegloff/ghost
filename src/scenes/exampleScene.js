@@ -1,20 +1,44 @@
 // src/scenes/exampleScene.js
 //
-// Kept as a plain function: it's a one-shot "populate this scene" script,
-// not a stateful entity with its own ongoing lifecycle -- it runs once and
-// hands back a few references for convenience.
+// Populates a scene with example level geometry: lighting, a reference
+// grid, a staircase, two moving platforms, a static ground box, a few
+// dynamic boxes, and a level switcher that sends the player to another
+// scene. It's a one-shot builder rather than a stateful object -- it runs
+// once against whatever `scene` and `physicsWorld` it's given and hands
+// back references to what it created.
+//
+// physicsWorld is created and initialized by the caller and passed in
+// here -- this module populates it, it doesn't own or step it.
+//
+// Follows the scene-builder contract used by SceneManager
+// (src/core/sceneManager.js): returns a `spawnPoint` for where the player
+// should be placed, and a `destroy()` that cleans up the plain scene-graph
+// content this function added directly (lights, grid) rather than through
+// physicsWorld.add(). Everything registered with physicsWorld -- the
+// stairs, platforms, boxes, and the level switcher -- is torn down
+// automatically by physicsWorld.clear() during a scene switch and doesn't
+// need to be repeated in destroy().
+//
+// This module has no import-time knowledge of any other SCENE FILE --
+// it never imports exampleSceneTwo.js or exampleSceneThree.js directly.
+// It does import levelGraph.js, the single shared module that knows the
+// full set of scenes and the order they switch between; this scene only
+// needs to know its own id (see `sceneId` below, passed in as a builder
+// arg by whoever loads it -- see main.js) to look up where its own level
+// switcher should lead via levelGraph's getNextSceneId()/getSceneBuilder().
 import * as THREE from "three";
 import { Grid } from "@pmndrs/vanilla";
 
 import { createPhysicsBox } from "../objects/createPhysicsBox.js";
-
 import { createStairs } from "../objects/createStairs.js";
 import { MovingPlatform } from "../objects/createMovingPlatform.js";
+import { LevelSwitcher } from "../objects/createLevelSwitcher.js";
+import { getNextSceneId, getSceneBuilder } from "./levelGraph.js";
 
-// physicsWorld is created and initialized by main.js and passed in here --
-// this module just populates it, it doesn't own the world or step it.
-export function createScene(scene, physicsWorld) {
-  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+export function createScene(scene, physicsWorld, { requestSwitch, sceneId = "sceneOne" } = {}) {
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
   dirLight.position.set(10, 25, 10);
   dirLight.castShadow = true;
@@ -113,9 +137,48 @@ export function createScene(scene, physicsWorld) {
   });
   physicsWorld.add(box3);
 
+  // Sends the player to whichever scene levelGraph.js says comes after
+  // this one. Placed at [12, 1, 8] -- away from this scene's own
+  // spawnPoint (see the file header's placement note) so landing here
+  // from another scene doesn't immediately trigger a switch back, and
+  // clear of the staircase and both platforms so it stays physically
+  // reachable. Only created when requestSwitch was actually supplied --
+  // lets this scene still be loaded standalone (e.g. in isolation)
+  // without needing the whole switching setup wired up.
+  let switcher = null;
+  if (requestSwitch) {
+    const nextSceneId = getNextSceneId(sceneId);
+    const nextSceneBuilder = getSceneBuilder(nextSceneId);
+    switcher = new LevelSwitcher(scene, physicsWorld, {
+      position: [12, 1, 8],
+      triggerRadius: 1.2,
+      color: 0x9b5de5,
+      requestSwitch: () =>
+        requestSwitch(nextSceneBuilder, {
+          keepPlayer: true,
+          builderArgs: { sceneId: nextSceneId },
+        }),
+    });
+    physicsWorld.add(switcher);
+  }
+
+  // Cleans up the scene-graph content added directly above (lights, grid)
+  // that physicsWorld never tracks and so wouldn't be caught by
+  // physicsWorld.clear() during a scene switch.
+  function destroy() {
+    scene.remove(ambientLight);
+    scene.remove(dirLight);
+    scene.remove(grid.mesh);
+    grid.mesh.geometry?.dispose();
+    grid.mesh.material?.dispose();
+  }
+
   return {
     grid,
     groundBox,
     boxes: [box1, box2, box3],
+    switcher,
+    spawnPoint: [0, 4, 5],
+    destroy,
   };
 }
