@@ -68,14 +68,29 @@
 // active, so objects that need to react to the player (again, a
 // LevelSwitcher's proximity check) can read it without being individually
 // wired to a specific player instance.
+//
+// FALL RESPAWN
+// SceneManager also owns a FallRespawner (see fallRespawner.js) and calls
+// its check() once per frame from update(), teleporting the player back
+// to the current scene's spawnPoint if they've fallen below
+// `fallThreshold`. It lives here rather than as a physicsWorld-managed
+// object because it needs to keep watching across every scene switch
+// without needing the unmanage()-before-clear() treatment the player
+// itself gets -- SceneManager already persists for the app's whole
+// lifetime and already tracks both the player and the current spawn
+// point, so it's the natural owner.
 
 import * as THREE from "three";
+import { FallRespawner } from "./fallRespawner.js";
 
 export class SceneManager {
-  constructor(physicsWorld) {
+  constructor(physicsWorld, options = {}) {
+    const { fallThreshold = -20 } = options;
     this.physicsWorld = physicsWorld;
     this.scene = null;
     this.player = null;
+    this.spawnPoint = null;
+    this.fallRespawner = new FallRespawner({ fallThreshold });
     this._sceneDestroy = null;
     this._pendingSwitch = null;
     this._switching = false;
@@ -130,6 +145,7 @@ export class SceneManager {
       })) ?? {};
     this._sceneDestroy = result.destroy ?? null;
     const spawnPoint = result.spawnPoint ?? [0, 0, 0];
+    this.spawnPoint = spawnPoint;
 
     if (keepPlayer && this.player) {
       const [x, y, z] = spawnPoint;
@@ -160,10 +176,13 @@ export class SceneManager {
   }
 
   // Call once per rendered frame, after physicsWorld.step() and
-  // updateMeshes() have both returned. Performs any switch requested via
-  // requestSwitch() since the last call. Safe to call every frame even
-  // when nothing is pending.
+  // updateMeshes() have both returned. Checks whether the player has
+  // fallen below the respawn threshold and, separately, performs any
+  // switch requested via requestSwitch() since the last call. Safe to
+  // call every frame even when nothing is pending.
   update() {
+    this.fallRespawner.check(this.player, this.spawnPoint);
+
     if (this._switching || !this._pendingSwitch) return;
     const { sceneBuilder, options } = this._pendingSwitch;
     this._pendingSwitch = null;
@@ -183,11 +202,12 @@ export class SceneManager {
     this.physicsWorld.player = null;
     this.scene = null;
     this.player = null;
+    this.spawnPoint = null;
     this._sceneDestroy = null;
     this._pendingSwitch = null;
   }
 }
 
-export function createSceneManager(physicsWorld) {
-  return new SceneManager(physicsWorld);
+export function createSceneManager(physicsWorld, options = {}) {
+  return new SceneManager(physicsWorld, options);
 }

@@ -32,6 +32,11 @@ const CONFIG = {
   cameraMinDistance: 3,
   cameraMaxDistance: 12,
 
+  // If the player's y position drops below this, they're teleported back
+  // to the current scene's spawn point (catches falling through a gap or
+  // off the edge of the world). Set lower than any scene's floor.
+  fallThreshold: -20,
+
   // Which scene to load when the game starts. Must be a scene id known to
   // levelGraph.js ("sceneOne", "sceneTwo", or "sceneThree").
   startingScene: "sceneOne",
@@ -104,7 +109,9 @@ async function main() {
   });
   await physicsWorld.init(new THREE.Scene());
 
-  const sceneManager = new SceneManager(physicsWorld);
+  const sceneManager = new SceneManager(physicsWorld, {
+    fallThreshold: CONFIG.fallThreshold,
+  });
 
   // Load the configured starting scene and spawn the player into it. Each
   // scene looks up where its own level switcher should lead via
