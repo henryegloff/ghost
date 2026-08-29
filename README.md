@@ -11,7 +11,7 @@ To have a quick play around with the code (and import your own player model):
 1. Open in StackBlitz via the link above
 2. Fork the directory (You will need a StackBlitz account)
 3. Upload your player model to public/models/
-4. Look for the 'path' in the CreatePlayer function in src/main.js file.
+4. Look for the 'path' in the CreatePlayer function in the src/main.js file.
 5. Please note, the StackBlitz demo may not be up to date with the files here. You can always come back here and clone this repo etc.
 
 You can also import GLB files and use them as physics objects, either static or dynamic by setting the mass or 'isDynamic: false,'. See src/scenes/scene/exampleSceneThree.js.

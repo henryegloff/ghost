@@ -20,7 +20,7 @@ const CONFIG = {
   showStats: false,
 
   // Show the wireframe outlines around physics objects
-  showPhysicsDebug: true,
+  showPhysicsDebug: false,
 
   // How hard gravity pulls down. Bigger = falls faster
   gravityStrength: 9.81,
