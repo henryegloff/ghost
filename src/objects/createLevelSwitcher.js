@@ -60,8 +60,8 @@ export class LevelSwitcher {
     const {
       position = [0, 0, 0],
       triggerRadius = 1.0,
-      cubeSize = 1.0,
-      color = 0x9b5de5,
+      cubeSize = 0.5,
+      color = 0xffffff,
       requestSwitch, // () => void, called once when the player enters range
       // Continuous rotation applied to the cube -- see rotationEffect.js.
       // `true`/`{}` (default) spins it with rotationEffect's own
@@ -93,7 +93,8 @@ export class LevelSwitcher {
     this.mesh.castShadow = true;
     scene.add(this.mesh);
 
-    const spinOptions = spin === true ? {} : spin === false ? { enabled: false } : spin;
+    const spinOptions =
+      spin === true ? {} : spin === false ? { enabled: false } : spin;
     this.spin = createRotationEffect(this.mesh, spinOptions);
 
     // Physics: a fixed sensor sphere -- static, and non-solid so nothing
@@ -101,7 +102,8 @@ export class LevelSwitcher {
     const bodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(x, y, z);
     this.body = physicsWorld.world.createRigidBody(bodyDesc);
 
-    const colliderDesc = RAPIER.ColliderDesc.ball(triggerRadius).setSensor(true);
+    const colliderDesc =
+      RAPIER.ColliderDesc.ball(triggerRadius).setSensor(true);
     this.collider = physicsWorld.world.createCollider(colliderDesc, this.body);
   }
 

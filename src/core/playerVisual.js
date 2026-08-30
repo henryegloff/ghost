@@ -73,11 +73,10 @@
 // meaning applies.
 
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { createMeshFacing } from "./meshFacing.js";
 import { createHoverEffect } from "./hoverEffect.js";
-
-const loader = new GLTFLoader();
+import { preloadGLB } from "./assetLoader.js";
 
 export function createPlayerVisual(scene, options = {}) {
   // Physics-matched capsule dimensions -- used directly when
@@ -160,10 +159,15 @@ export function createPlayerVisual(scene, options = {}) {
       );
       resolveReady(root);
     } else {
-      loader.load(
-        path,
-        (gltf) => {
-          const model = gltf.scene;
+      preloadGLB(path)
+        .then((gltf) => {
+          // Cloned via SkeletonUtils rather than a plain Object3D.clone()
+          // -- gltf.scene may be a cached object shared with other
+          // callers (see assetLoader.js), and a plain clone doesn't
+          // correctly rebind skinned-mesh bone references to a cloned
+          // skeleton, which breaks or desyncs animations on any model
+          // that has them, as this one does (see gltf.animations below).
+          const model = cloneSkinned(gltf.scene);
           applyLocalTransform(model);
           model.traverse((child) => {
             if (child.isMesh) {
@@ -182,17 +186,15 @@ export function createPlayerVisual(scene, options = {}) {
           }
 
           resolveReady(root);
-        },
-        undefined, // onProgress -- unused
-        (error) => {
+        })
+        .catch((error) => {
           console.error(
             `createPlayerVisual: failed to load model at "${path}", ` +
               "falling back to an empty body.",
             error,
           );
           resolveReady(root);
-        },
-      );
+        });
     }
   } else if (type === "none") {
     resolveReady(root);

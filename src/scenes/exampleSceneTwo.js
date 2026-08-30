@@ -1,25 +1,16 @@
-// src/scenes/exampleSceneTwo.js
-//
-// A second example scene, built to the same scene-builder contract as
-// exampleScene.js but visually and structurally distinct: a smaller,
-// sunken arena instead of a staircase-and-platforms layout, with a cooler
-// lighting palette.
-//
-// This has no import-time knowledge of any other SCENE FILE -- it never
-// imports exampleScene.js or exampleSceneThree.js directly. It does
-// import levelGraph.js, the single shared module that knows the full set
-// of scenes and the order they switch between; this scene only needs to
-// know its own id (see `sceneId` below, passed in as a builder arg by
-// whoever loads it -- see main.js) to look up where its own level
-// switcher should lead via levelGraph's getNextSceneId()/getSceneBuilder().
 import * as THREE from "three";
 import { Grid } from "@pmndrs/vanilla";
-
 import { createPhysicsBox } from "../objects/createPhysicsBox.js";
+import { createStairs } from "../objects/createStairs.js";
+import { MovingPlatform } from "../objects/createMovingPlatform.js";
 import { LevelSwitcher } from "../objects/createLevelSwitcher.js";
 import { getNextSceneId, getSceneBuilder } from "./levelGraph.js";
 
-export function createSceneTwo(scene, physicsWorld, { requestSwitch, sceneId = "sceneTwo" } = {}) {
+export function createSceneTwo(
+  scene,
+  physicsWorld,
+  { requestSwitch, sceneId = "sceneTwo" } = {},
+) {
   const ambientLight = new THREE.AmbientLight(0x88a9ff, 0.5);
   scene.add(ambientLight);
 
@@ -62,6 +53,36 @@ export function createSceneTwo(scene, physicsWorld, { requestSwitch, sceneId = "
     friction: 0.8,
   });
   physicsWorld.add(floor);
+
+  createStairs(scene, physicsWorld, {
+    position: [-5, 0, -5],
+    stepCount: 15,
+    stepWidth: 4,
+    stepHeight: 0.25,
+    stepDepth: 0.5,
+    direction: Math.PI / 2,
+  });
+
+  const platform = new MovingPlatform(scene, physicsWorld, {
+    positions: [
+      [10, 1, -5],
+      [10, 4, -5],
+      [10, 1, 5],
+    ],
+    durations: [2.5, 2.5, 1.5],
+    size: [4, 0.5, 4],
+  });
+  physicsWorld.add(platform); // explicit -- this one follows the createPhysicsBox convention
+
+  const platform2 = new MovingPlatform(scene, physicsWorld, {
+    positions: [
+      [5, 1, -5],
+      [5, 8, -5],
+    ],
+    durations: [2.5, 2.5],
+    size: [4, 0.5, 4],
+  });
+  physicsWorld.add(platform2); // explicit -- this one follows the createPhysicsBox convention
 
   // A ring of raised static blocks around the edge, standing in for
   // walls/cover.

@@ -3,55 +3,28 @@ import "../src/styles/base.css";
 import * as THREE from "three";
 import { Timer } from "three";
 import Stats from "three/examples/jsm/libs/stats.module.js";
-
 import { createPhysicsWorld } from "./physics/physicsWorld.js";
 import { SceneManager } from "./core/sceneManager.js";
 import { getSceneBuilder } from "./scenes/levelGraph.js";
-
-//import { createPlayerController } from "./core/playerController.js";
-//import { createFlowController } from "./core/flowController.js";
+import { createLoadingScreen } from "./core/loadingScreen.js";
+import { preloadAll, onProgress } from "./core/assetLoader.js";
+import { PLAYER_ASSETS, SCENE_ASSETS } from "./scenes/assetManifest.js";
 import { createPlayerControlExtended } from "./core/playerControllerExtended.js";
 
-// =============================================================
-// SETTINGS — change these to customize the game
-// =============================================================
 const CONFIG = {
-  // Show the little FPS box in the corner
   showStats: false,
-
-  // Show the wireframe outlines around physics objects
   showPhysicsDebug: false,
-
-  // How hard gravity pulls down. Bigger = falls faster
   gravityStrength: 9.81,
-
-  // How fast the camera catches up to the player. Higher = snappier
   cameraFollowSpeed: 0.5,
-
-  // How close/far the camera can zoom
-  cameraMinDistance: 3,
-  cameraMaxDistance: 12,
-
-  // If the player's y position drops below this, they're teleported back
-  // to the current scene's spawn point (catches falling through a gap or
-  // off the edge of the world). Set lower than any scene's floor.
+  cameraMinDistance: 2,
+  cameraMaxDistance: 60,
   fallThreshold: -20,
-
-  // Which scene to load when the game starts. Must be a scene id known to
-  // levelGraph.js ("sceneOne", "sceneTwo", or "sceneThree").
   startingScene: "sceneOne",
 };
-// =============================================================
 
-// Builds the player: camera + controls + physics, all bundled together.
-// Passed to SceneManager.loadScene() as `createPlayer` so it can be
-// (re)built with whatever spawnPoint the active scene reports, and so a
-// scene switch that doesn't set keepPlayer can rebuild it from scratch.
-//
-// `visual` controls what gets drawn at the player's location:
-//   'model'   -- a loaded 3D model (used below, a ghost)
-//   'capsule' -- the default plain capsule shape
-//   'none'    -- nothing drawn (e.g. first-person view)
+// Create Player
+// type (model, capsule mesh or no mesh)
+
 function createPlayer(scene, physicsWorld, domElement, spawnPoint) {
   return createPlayerControlExtended(scene, physicsWorld, domElement, {
     initialPosition: spawnPoint,
@@ -62,12 +35,10 @@ function createPlayer(scene, physicsWorld, domElement, spawnPoint) {
     visual: {
       type: "model",
       path: "/models/ghost_4.03.glb",
-      // Scale/position/rotation to line the model up with the capsule
       scale: 1,
       position: [0, 0, 0],
       rotation: [0, 0, 0],
       castShadow: true,
-      // Turns to face the direction the player is moving
       facing: {
         turnSpeed: 10, // radians/sec
         forward: [0, 0, -1], // flip to [0,0,1] if the model faces backwards
@@ -84,11 +55,10 @@ function createPlayer(scene, physicsWorld, domElement, spawnPoint) {
   });
 }
 
-// Other visual options, for reference:
-//   visual: { type: "capsule" }   -- plain capsule
-//   visual: { type: "none" }      -- no mesh at all
-
 async function main() {
+  const loadingScreen = createLoadingScreen();
+  loadingScreen.show();
+
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -98,11 +68,6 @@ async function main() {
   const canvasContainer = document.getElementById("threejs-canvas");
   canvasContainer.appendChild(renderer.domElement);
 
-  // A single PhysicsWorld (and Rapier World) lives for the app's entire
-  // lifetime -- SceneManager swaps its active THREE.Scene and clears its
-  // managed objects between scenes rather than recreating either. init()
-  // still needs some THREE.Scene to attach its debug-line mesh to; the
-  // placeholder here is immediately replaced by SceneManager.loadScene().
   const physicsWorld = createPhysicsWorld({
     gravity: [0, -CONFIG.gravityStrength, 0],
     debug: CONFIG.showPhysicsDebug,
@@ -113,19 +78,59 @@ async function main() {
     fallThreshold: CONFIG.fallThreshold,
   });
 
+  const startId = CONFIG.startingScene;
+  const startBuilder = getSceneBuilder(startId);
+
+  // BOOT SEQUENCE, PART 1: block only on what's needed to actually start
+  // playing -- the player's own model plus whatever the starting scene
+  // itself needs (see assetManifest.js). Everything else preloads in the
+  // background after gameplay begins (part 2, below the render loop).
+  //
+  // This is also what actually fixes intermittent "unreachable" crashes
+  // that could happen when switching into a scene whose GLB assets
+  // hadn't loaded yet: previously that fetch happened live, in the
+  // middle of the switch, with physicsWorld.step() still running every
+  // frame against a half-built scene for however long it took. Once an
+  // asset is preloaded, createPhysicsGLB.js's loader resolves it
+  // instantly from cache instead, so a switch into an already-preloaded
+  // scene collapses back to being effectively synchronous. See
+  // sceneManager.js and createPhysicsGLB.js for more on why that gap
+  // was a problem in the first place.
+  const startingAssets = [...PLAYER_ASSETS, ...(SCENE_ASSETS[startId] ?? [])];
+
+  const unsubscribeProgress = onProgress(({ loaded, total }) => {
+    if (total > 0) {
+      loadingScreen.setProgress(loaded / total);
+      loadingScreen.setLabel(`Loading assets (${loaded}/${total})`);
+    }
+  });
+
+  const startResults = await preloadAll(startingAssets);
+  unsubscribeProgress();
+
+  for (const { url, status, error } of startResults) {
+    if (status === "rejected") {
+      console.warn(
+        `main.js: failed to preload "${url}" -- continuing without it.`,
+        error,
+      );
+    }
+  }
+
   // Load the configured starting scene and spawn the player into it. Each
   // scene looks up where its own level switcher should lead via
   // levelGraph.js (see that file for the full sceneOne -> sceneTwo ->
   // sceneThree -> sceneOne routing), keyed off the `sceneId` builder arg
   // passed here -- none of the scene files import each other directly.
-  const startId = CONFIG.startingScene;
-  const startBuilder = getSceneBuilder(startId);
-
+  // Its own GLB loads (if any) resolve instantly now, from the cache
+  // just populated above.
   await sceneManager.loadScene(startBuilder, {
     createPlayer: (scene, physicsWorld, spawnPoint) =>
       createPlayer(scene, physicsWorld, renderer.domElement, spawnPoint),
     builderArgs: { sceneId: startId },
   });
+
+  loadingScreen.hide();
 
   // FPS stats box
   const stats = new Stats();
@@ -172,6 +177,24 @@ async function main() {
   }
   requestAnimationFrame(animate);
 
+  // BOOT SEQUENCE, PART 2: now that the player is already in the starting
+  // scene and the game is running, keep preloading every other scene's
+  // assets in the background -- non-blocking, and not awaited here. By
+  // the time the player reaches a LevelSwitcher into one of these scenes,
+  // its assets should already be cached (see PART 1's comment above for
+  // why that matters).
+  const backgroundAssets = Object.entries(SCENE_ASSETS)
+    .filter(([id]) => id !== startId)
+    .flatMap(([, assets]) => assets);
+
+  preloadAll(backgroundAssets).then((results) => {
+    for (const { url, status, error } of results) {
+      if (status === "rejected") {
+        console.warn(`main.js: background preload of "${url}" failed.`, error);
+      }
+    }
+  });
+
   function handleResize() {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -187,6 +210,7 @@ async function main() {
     import.meta.hot.dispose(() => {
       stopped = true;
       window.removeEventListener("resize", handleResize);
+      loadingScreen.destroy();
       // Best-effort: the old Rapier world's WASM state may already be
       // unreachable by the time this runs, so a failure here shouldn't
       // block the rest of teardown.
